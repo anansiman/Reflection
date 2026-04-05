@@ -1,0 +1,1170 @@
+openapi: 3.1.0
+info:
+  title: Reflection API
+  version: 1.0.0
+  summary: Barcode-driven product and company reflection API
+  description: >
+    A source-backed API for resolving products from barcodes, computing a 7-axis
+    reflection field, exposing evidence, and presenting alternatives. The API is
+    designed to preserve transparency, confidence, freshness, and provenance.
+
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: https://staging-api.example.com
+    description: Staging
+
+tags:
+  - name: Scan
+  - name: Products
+  - name: Companies
+  - name: Reflection
+  - name: Sources
+  - name: Metrics
+
+paths:
+  /api/v1/scan/resolve:
+    post:
+      tags: [Scan]
+      operationId: resolveScan
+      summary: Resolve barcode to product and company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanResolveRequest'
+      responses:
+        '200':
+          description: Scan resolved successfully or ambiguity returned
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ScanResolveResponse'
+                  - $ref: '#/components/schemas/ScanResolveAmbiguousResponse'
+        '400':
+          $ref: '#/components/responses/InvalidBarcode'
+        '404':
+          $ref: '#/components/responses/ProductNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/products/{product_id}:
+    get:
+      tags: [Products]
+      operationId: getProduct
+      summary: Get product details
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404':
+          $ref: '#/components/responses/ProductNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/companies/{company_id}:
+    get:
+      tags: [Companies]
+      operationId: getCompany
+      summary: Get company details
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Company details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '404':
+          $ref: '#/components/responses/CompanyNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/entities/{entity_type}/{entity_id}/metrics:
+    get:
+      tags: [Metrics]
+      operationId: getEntityMetrics
+      summary: Get normalized metrics for a product or company
+      parameters:
+        - $ref: '#/components/parameters/EntityType'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200':
+          description: Entity metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+        '404':
+          $ref: '#/components/responses/EntityNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/reflection/product/{product_id}:
+    get:
+      tags: [Reflection]
+      operationId: getProductReflection
+      summary: Get full 7-axis reflection for a product
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product reflection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReflectionResponse'
+        '404':
+          $ref: '#/components/responses/ReflectionUnavailable'
+        '409':
+          $ref: '#/components/responses/InsufficientEvidence'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/reflection/company/{company_id}:
+    get:
+      tags: [Reflection]
+      operationId: getCompanyReflection
+      summary: Get full 7-axis reflection for a company
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Company reflection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReflectionResponse'
+        '404':
+          $ref: '#/components/responses/ReflectionUnavailable'
+        '409':
+          $ref: '#/components/responses/InsufficientEvidence'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/reflection/{reflection_id}/evidence:
+    get:
+      tags: [Reflection]
+      operationId: getReflectionEvidence
+      summary: Get source-backed evidence for a reflection axis
+      parameters:
+        - $ref: '#/components/parameters/ReflectionId'
+        - $ref: '#/components/parameters/AxisQuery'
+      responses:
+        '200':
+          description: Reflection evidence for an axis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceResponse'
+        '400':
+          $ref: '#/components/responses/InvalidAxis'
+        '404':
+          $ref: '#/components/responses/ReflectionUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/reflection/product/{product_id}/alternatives:
+    get:
+      tags: [Reflection]
+      operationId: getProductAlternatives
+      summary: Get comparable alternatives for a product
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/RegionQuery'
+        - $ref: '#/components/parameters/MaxResultsQuery'
+        - $ref: '#/components/parameters/PriceBandQuery'
+        - $ref: '#/components/parameters/PreferredAxesQuery'
+      responses:
+        '200':
+          description: Product alternatives
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlternativesResponse'
+        '404':
+          $ref: '#/components/responses/ProductNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/sources/{source_id}:
+    get:
+      tags: [Sources]
+      operationId: getSource
+      summary: Get source metadata and excerpt blocks
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceDocumentResponse'
+        '404':
+          $ref: '#/components/responses/SourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    ProductId:
+      name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Product identifier
+
+    CompanyId:
+      name: company_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Company identifier
+
+    ReflectionId:
+      name: reflection_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Reflection identifier
+
+    SourceId:
+      name: source_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Source identifier
+
+    EntityType:
+      name: entity_type
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/EntityType'
+
+    EntityId:
+      name: entity_id
+      in: path
+      required: true
+      schema:
+        type: string
+
+    AxisQuery:
+      name: axis
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/Axis'
+
+    RegionQuery:
+      name: region
+      in: query
+      required: false
+      schema:
+        type: string
+        example: MT
+
+    MaxResultsQuery:
+      name: max_results
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 20
+        default: 5
+
+    PriceBandQuery:
+      name: price_band
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [budget, mid, premium]
+
+    PreferredAxesQuery:
+      name: preferred_axes
+      in: query
+      required: false
+      description: Comma-separated list of axes to prioritize
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/Axis'
+        style: form
+        explode: false
+
+  responses:
+    InvalidBarcode:
+      description: Invalid barcode supplied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ProductNotFound:
+      description: Product could not be found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    CompanyNotFound:
+      description: Company could not be found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    EntityNotFound:
+      description: Entity could not be found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ReflectionUnavailable:
+      description: Reflection unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InsufficientEvidence:
+      description: Not enough evidence to compute the requested reflection
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    SourceNotFound:
+      description: Source could not be found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InvalidAxis:
+      description: Invalid axis requested
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    VersionString:
+      type: string
+      example: "1.0"
+
+    EntityType:
+      type: string
+      enum: [product, company]
+
+    Axis:
+      type: string
+      enum:
+        - harm
+        - truth
+        - exchange
+        - excess
+        - power
+        - responsibility
+        - harmony
+
+    ConfidenceLabel:
+      type: string
+      enum: [low, medium, high]
+
+    FreshnessStatus:
+      type: string
+      enum: [fresh, aging, stale]
+
+    ReflectionLabel:
+      type: string
+      enum: [distorted, imbalanced, mixed, coherent]
+
+    TrustLevel:
+      type: string
+      enum: [primary, secondary, derived]
+
+    OverallState:
+      type: string
+      enum:
+        - coherent
+        - mixed_coherence
+        - imbalanced
+        - unavailable
+
+    Confidence:
+      type: object
+      required: [score, label, basis]
+      properties:
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.84
+        label:
+          $ref: '#/components/schemas/ConfidenceLabel'
+        basis:
+          type: string
+
+    Freshness:
+      type: object
+      required: [as_of, stale_after, status]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        stale_after:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/FreshnessStatus'
+
+    SourceRef:
+      type: object
+      required:
+        - source_id
+        - title
+        - publisher
+        - document_date
+        - section
+        - excerpt
+        - url
+        - trust_level
+      properties:
+        source_id:
+          type: string
+        title:
+          type: string
+        publisher:
+          type: string
+        document_date:
+          type: string
+          format: date
+        section:
+          type: string
+        excerpt:
+          type: string
+        url:
+          type: string
+          format: uri
+        trust_level:
+          $ref: '#/components/schemas/TrustLevel'
+
+    MetricPeriod:
+      type: object
+      required: [start, end]
+      properties:
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+
+    Benchmark:
+      type: object
+      required: [group, value]
+      properties:
+        group:
+          type: string
+        value:
+          type: number
+
+    MetricRef:
+      type: object
+      required:
+        - metric_id
+        - name
+        - value
+        - unit
+        - period
+        - normalized_value
+        - source_ids
+      properties:
+        metric_id:
+          type: string
+        name:
+          type: string
+        value:
+          oneOf:
+            - type: number
+            - type: string
+            - type: boolean
+        unit:
+          type: string
+        period:
+          $ref: '#/components/schemas/MetricPeriod'
+        normalized_value:
+          type: number
+          minimum: 0
+          maximum: 1
+        benchmark:
+          $ref: '#/components/schemas/Benchmark'
+        source_ids:
+          type: array
+          items:
+            type: string
+
+    Product:
+      type: object
+      required:
+        - product_id
+        - name
+        - brand
+        - category
+        - subcategory
+        - barcode
+        - barcode_type
+        - region_availability
+      properties:
+        product_id:
+          type: string
+        name:
+          type: string
+        brand:
+          type: string
+        category:
+          type: string
+        subcategory:
+          type: string
+        barcode:
+          type: string
+        barcode_type:
+          type: string
+          enum: [ean13, upc_a, gtin, qr, other]
+        image_url:
+          type: string
+          format: uri
+        region_availability:
+          type: array
+          items:
+            type: string
+        parent_company_id:
+          type: string
+        attributes:
+          type: object
+          additionalProperties: true
+
+    Company:
+      type: object
+      required:
+        - company_id
+        - name
+        - country
+        - is_public
+      properties:
+        company_id:
+          type: string
+        name:
+          type: string
+        ticker:
+          type: string
+        exchange:
+          type: string
+        sector:
+          type: string
+        industry:
+          type: string
+        country:
+          type: string
+        is_public:
+          type: boolean
+        parent_company_id:
+          type: string
+          nullable: true
+
+    MatchConfidence:
+      allOf:
+        - $ref: '#/components/schemas/Confidence'
+
+    ScanResolveRequest:
+      type: object
+      required: [barcode, barcode_type]
+      properties:
+        barcode:
+          type: string
+        barcode_type:
+          type: string
+          enum: [ean13, upc_a, gtin, qr, other]
+        region:
+          type: string
+        locale:
+          type: string
+        device_time:
+          type: string
+          format: date-time
+
+    ScanResolveResponse:
+      type: object
+      required:
+        - version
+        - request_id
+        - generated_at
+        - product
+        - company
+        - match_confidence
+        - freshness
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        request_id:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        product:
+          $ref: '#/components/schemas/Product'
+        company:
+          $ref: '#/components/schemas/Company'
+        match_confidence:
+          $ref: '#/components/schemas/MatchConfidence'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+
+    ScanResolveCandidate:
+      type: object
+      required: [product_id, name, brand, match_confidence]
+      properties:
+        product_id:
+          type: string
+        name:
+          type: string
+        brand:
+          type: string
+        match_confidence:
+          $ref: '#/components/schemas/MatchConfidence'
+
+    ScanResolveAmbiguousResponse:
+      type: object
+      required: [version, request_id, generated_at, status, candidates]
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        request_id:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ambiguous]
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanResolveCandidate'
+
+    ReflectionEntity:
+      type: object
+      required: [entity_type, entity_id, name]
+      properties:
+        entity_type:
+          $ref: '#/components/schemas/EntityType'
+        entity_id:
+          type: string
+        name:
+          type: string
+        company_id:
+          type: string
+
+    AxisReflection:
+      type: object
+      required:
+        - value
+        - label
+        - summary
+        - confidence
+        - drivers
+        - metric_ids
+        - source_ids
+      properties:
+        value:
+          type: number
+          minimum: 0
+          maximum: 1
+        label:
+          $ref: '#/components/schemas/ReflectionLabel'
+        summary:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        drivers:
+          type: array
+          items:
+            type: string
+        metric_ids:
+          type: array
+          items:
+            type: string
+        source_ids:
+          type: array
+          items:
+            type: string
+
+    ReflectionAxes:
+      type: object
+      required:
+        - harm
+        - truth
+        - exchange
+        - excess
+        - power
+        - responsibility
+        - harmony
+      properties:
+        harm:
+          $ref: '#/components/schemas/AxisReflection'
+        truth:
+          $ref: '#/components/schemas/AxisReflection'
+        exchange:
+          $ref: '#/components/schemas/AxisReflection'
+        excess:
+          $ref: '#/components/schemas/AxisReflection'
+        power:
+          $ref: '#/components/schemas/AxisReflection'
+        responsibility:
+          $ref: '#/components/schemas/AxisReflection'
+        harmony:
+          $ref: '#/components/schemas/AxisReflection'
+
+    ReflectionOverall:
+      type: object
+      required: [state, summary, confidence]
+      properties:
+        state:
+          $ref: '#/components/schemas/OverallState'
+        summary:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+
+    ReflectionModel:
+      type: object
+      required: [engine_version, schema_version]
+      properties:
+        engine_version:
+          type: string
+        schema_version:
+          type: string
+
+    ReflectionResponse:
+      type: object
+      required:
+        - version
+        - reflection_id
+        - entity
+        - generated_at
+        - freshness
+        - overall
+        - axes
+        - model
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        reflection_id:
+          type: string
+        entity:
+          $ref: '#/components/schemas/ReflectionEntity'
+        generated_at:
+          type: string
+          format: date-time
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        overall:
+          $ref: '#/components/schemas/ReflectionOverall'
+        axes:
+          $ref: '#/components/schemas/ReflectionAxes'
+        limitations:
+          type: array
+          items:
+            type: string
+        model:
+          $ref: '#/components/schemas/ReflectionModel'
+
+    EvidenceMetric:
+      type: object
+      required:
+        - metric_id
+        - name
+        - value
+        - unit
+        - normalized_value
+        - interpretation
+      properties:
+        metric_id:
+          type: string
+        name:
+          type: string
+        value:
+          oneOf:
+            - type: number
+            - type: string
+            - type: boolean
+        unit:
+          type: string
+        normalized_value:
+          type: number
+          minimum: 0
+          maximum: 1
+        benchmark:
+          $ref: '#/components/schemas/Benchmark'
+        interpretation:
+          type: string
+
+    EvidenceResponse:
+      type: object
+      required:
+        - version
+        - reflection_id
+        - axis
+        - generated_at
+        - summary
+        - confidence
+        - metrics
+        - sources
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        reflection_id:
+          type: string
+        axis:
+          $ref: '#/components/schemas/Axis'
+        generated_at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceMetric'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+
+    MiniReflection:
+      type: object
+      required:
+        - harm
+        - truth
+        - exchange
+        - excess
+        - power
+        - responsibility
+        - harmony
+      properties:
+        harm:
+          type: number
+          minimum: 0
+          maximum: 1
+        truth:
+          type: number
+          minimum: 0
+          maximum: 1
+        exchange:
+          type: number
+          minimum: 0
+          maximum: 1
+        excess:
+          type: number
+          minimum: 0
+          maximum: 1
+        power:
+          type: number
+          minimum: 0
+          maximum: 1
+        responsibility:
+          type: number
+          minimum: 0
+          maximum: 1
+        harmony:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    AlternativeProduct:
+      type: object
+      required:
+        - product_id
+        - name
+        - brand
+        - mini_reflection
+        - summary
+        - confidence
+      properties:
+        product_id:
+          type: string
+        name:
+          type: string
+        brand:
+          type: string
+        mini_reflection:
+          $ref: '#/components/schemas/MiniReflection'
+        summary:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+
+    AlternativesCriteria:
+      type: object
+      properties:
+        category:
+          type: string
+        region:
+          type: string
+        price_band:
+          type: string
+
+    AlternativesResponse:
+      type: object
+      required:
+        - version
+        - product_id
+        - generated_at
+        - alternatives
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        product_id:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        criteria:
+          $ref: '#/components/schemas/AlternativesCriteria'
+        alternatives:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlternativeProduct'
+
+    QualityScore:
+      type: object
+      required: [score, label]
+      properties:
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+        label:
+          $ref: '#/components/schemas/ConfidenceLabel'
+
+    Metric:
+      type: object
+      required:
+        - metric_id
+        - name
+        - display_name
+        - value
+        - unit
+        - period
+        - normalized_value
+        - quality
+        - source_ids
+      properties:
+        metric_id:
+          type: string
+        name:
+          type: string
+        display_name:
+          type: string
+        value:
+          oneOf:
+            - type: number
+            - type: string
+            - type: boolean
+        unit:
+          type: string
+        period:
+          $ref: '#/components/schemas/MetricPeriod'
+        normalized_value:
+          type: number
+          minimum: 0
+          maximum: 1
+        benchmark:
+          $ref: '#/components/schemas/Benchmark'
+        quality:
+          $ref: '#/components/schemas/QualityScore'
+        source_ids:
+          type: array
+          items:
+            type: string
+
+    MetricsEntity:
+      type: object
+      required: [entity_type, entity_id, name]
+      properties:
+        entity_type:
+          $ref: '#/components/schemas/EntityType'
+        entity_id:
+          type: string
+        name:
+          type: string
+
+    MetricsResponse:
+      type: object
+      required: [version, entity, metrics]
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        entity:
+          $ref: '#/components/schemas/MetricsEntity'
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Metric'
+
+    ProductResponse:
+      type: object
+      required: [version, product, confidence, freshness]
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        product:
+          $ref: '#/components/schemas/Product'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+
+    CompanyResponse:
+      type: object
+      required: [version, company, freshness]
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        company:
+          $ref: '#/components/schemas/Company'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+
+    ExcerptBlock:
+      type: object
+      required: [block_id, section, text]
+      properties:
+        block_id:
+          type: string
+        section:
+          type: string
+        text:
+          type: string
+        page_hint:
+          type: string
+
+    SourceDocument:
+      type: object
+      required:
+        - source_id
+        - source_type
+        - title
+        - publisher
+        - document_date
+        - url
+        - trust_level
+        - language
+      properties:
+        source_id:
+          type: string
+        source_type:
+          type: string
+        title:
+          type: string
+        publisher:
+          type: string
+        document_date:
+          type: string
+          format: date
+        url:
+          type: string
+          format: uri
+        trust_level:
+          $ref: '#/components/schemas/TrustLevel'
+        language:
+          type: string
+
+    SourceDocumentResponse:
+      type: object
+      required: [version, source, excerpt_blocks, retrieved_at]
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        source:
+          $ref: '#/components/schemas/SourceDocument'
+        excerpt_blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcerptBlock'
+        retrieved_at:
+          type: string
+          format: date-time
+
+    ErrorObject:
+      type: object
+      required: [code, message, retryable]
+      properties:
+        code:
+          type: string
+          enum:
+            - INVALID_BARCODE
+            - PRODUCT_NOT_FOUND
+            - COMPANY_NOT_FOUND
+            - ENTITY_NOT_FOUND
+            - AMBIGUOUS_PRODUCT_MATCH
+            - REFLECTION_UNAVAILABLE
+            - INSUFFICIENT_EVIDENCE
+            - SOURCE_NOT_FOUND
+            - INVALID_AXIS
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+        retryable:
+          type: boolean
+        details:
+          type: object
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      required: [version, error, generated_at]
+      properties:
+        version:
+          $ref: '#/components/schemas/VersionString'
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+        generated_at:
+          type: string
+          format: date-time
